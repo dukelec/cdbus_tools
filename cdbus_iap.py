@@ -50,38 +50,30 @@ parser.add_argument('--out-file', dest='out_file')
 parser.add_argument('--reboot', action='store_true')
 args = parser.parse_args()
 
-def _int(val):
-    try:
-        return int(val)
-    except:
-        return int(val, 16)
-
 sub_size = 128
-addr = _int(args.addr)
-size = _int(args.size)
+addr = int(args.addr, 0)
+size = int(args.size, 0)
 
 if args.not_direct:
-    local_addr = _int(args.local_addr)
-    target_addr = _int(args.target_addr)
+    local_addr = int(args.local_addr, 0)
+    target_addr = int(args.target_addr, 0)
 else:
     local_addr = 0xaa
     target_addr = 0x55
 
 cdbus_serial = CdbusSerial(dev_port=args.dev)
 
-def _bytes(val):
-    return val.to_bytes(1, byteorder='little')
 
 def tx_wrapper(dat):
     if args.not_direct:
-        dat = b'\xaa\x56' + _bytes(dat[2]+2) + dat[0:2] + dat[3:]
+        dat = b'\xaa\x56' + bytes([dat[2]+2]) + dat[0:2] + dat[3:]
     cdbus_serial.tx(dat)
 
 def rx_wrapper(timeout=None):
     try:
         dat = cdbus_serial.rx_queue.get(timeout=timeout)
         if args.not_direct:
-            dat = dat[3:5] + _bytes(dat[2]-2) + dat[5:]
+            dat = dat[3:5] + bytes([dat[2]-2]) + dat[5:]
         if not cdbus_serial.rx_queue.empty():
             print('error: rx queue not empty')
             exit(-1)
@@ -90,10 +82,10 @@ def rx_wrapper(timeout=None):
         return b''
 
 def reboot():
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + bytes([3, 0x80, 10, 0x00]))
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + bytes([3, 0x80, 10, 0x00]))
 
 def stay_in_bl():
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + bytes([3, 0x80, 10, 0x02]))
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + bytes([3, 0x80, 10, 0x02]))
     ret = rx_wrapper(timeout=1)
     print('stay_in_bl ret: ' + to_hexstr(ret))
 
@@ -103,16 +95,16 @@ print(cdbus_serial.rx_queue.get()[4:])
 print()
 if args.not_direct:
     print('cdbus_bridge set filter %d:' % local_addr)
-    cdbus_serial.tx(b'\xaa\x55\x04\x03\x08\x00' + _bytes(local_addr))
+    cdbus_serial.tx(b'\xaa\x55\x04\x03\x08\x00' + bytes([local_addr]))
     print('' + to_hexstr(cdbus_serial.rx_queue.get()) + '\n')
     print()
     print('target %d get info:' % target_addr)
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + b'\x01\x01')
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + b'\x01\x01')
     print(cdbus_serial.rx_queue.get()[4:])
 stay_in_bl()
 
 def _read_flash(addr, _len):
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + \
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
             bytes([8, 0x80, 11, 0x00]) + struct.pack("<IB", addr, _len))
     ret = rx_wrapper()
     print(('  %08x: ' % addr) + to_hexstr(ret))
@@ -123,7 +115,7 @@ def _read_flash(addr, _len):
 
 def _write_flash(addr, dat):    
     print(('  %08x: ' % addr) + to_hexstr(dat))
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + \
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
             bytes([7+len(dat), 0x80, 11, 0x01]) + struct.pack("<I", addr) + dat)
     ret = rx_wrapper()
     print('  write ret: ' + to_hexstr(ret))
@@ -132,7 +124,7 @@ def _write_flash(addr, dat):
         exit(-1)
 
 def _erase_flash(addr, _len):
-    tx_wrapper(_bytes(local_addr) + _bytes(target_addr) + \
+    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
             bytes([11, 0x80, 11, 0xff]) + struct.pack("<II", addr, _len))
     ret = rx_wrapper()
     print('  erase ret: ' + to_hexstr(ret))

@@ -43,9 +43,6 @@ args = parser.parse_args()
 
 cdbus_serial = CdbusSerial(dev_port=args.dev)
 
-def _bytes(val):
-    return val.to_bytes(1, byteorder='little')
-
 
 if not args.direct:
     print('cdbus_bridge get info:')
@@ -55,14 +52,14 @@ if not args.direct:
 
     local_mac = int(args.local_mac)
     print('cdbus_bridge set filter %d:' % local_mac)
-    cdbus_serial.tx(b'\xaa\x55\x04\x03\x08\x00' + _bytes(local_mac))
+    cdbus_serial.tx(b'\xaa\x55\x04\x03\x08\x00' + bytes([local_mac]))
     print('' + to_hexstr(cdbus_serial.rx_queue.get()) + '\n')
 
 def rx_echo():
     while True:
         rx = cdbus_serial.rx_queue.get()
         if not args.direct:
-            rx = rx[3:5] + _bytes((rx[2]-2)) + rx[5:]
+            rx = rx[3:5] + bytes([(rx[2]-2)]) + rx[5:]
         print('\r-> ' + to_hexstr(rx) + '\n<- ', end='',  flush=True)
 
 _thread.start_new_thread(rx_echo, ())
@@ -73,6 +70,6 @@ while True:
         continue
     tx = bytes.fromhex(tx)
     if not args.direct:
-        tx = b'\xaa\x56' + _bytes(tx[2]+2) + tx[0:2] + tx[3:]
+        tx = b'\xaa\x56' + bytes([tx[2]+2]) + tx[0:2] + tx[3:]
     cdbus_serial.tx(tx)
 
