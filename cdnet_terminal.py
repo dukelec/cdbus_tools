@@ -6,7 +6,7 @@
 #
 # Author: Duke Fong <duke@dukelec.com>
 
-"""Low level CDBUS debug tool
+"""CDNET debug tool
 
 This tool use CDBUS Bridge by default, communicate with any node on the RS485 bus.
 
@@ -47,19 +47,23 @@ if direct:
     dev = CDBusSerial(dev_port=dev_str)
 else:
     dev = CDBusBridge(dev_port=dev_str, filter_=local_mac)
+CDNetIntf(dev, mac=local_mac)
+sock = CDNetSocket(('', 0xcdcd))
+
 
 def rx_echo():
     while True:
-        rx = dev.recv()
-        print('\r-> ' + to_hexstr(rx) + '\n<- ', end='',  flush=True)
+        rx = sock.recvfrom()
+        print('\r-> ', rx)
 
 _thread.start_new_thread(rx_echo, ())
 
+
+# e.g. type: sock.sendto(b'\x01', ('80:00:02', 3))
 while True:
     sleep(0.1)
-    tx = input("<- ")
-    if not len(tx):
+    cmd = input("<- ")
+    if not len(cmd):
         continue
-    tx = bytes.fromhex(tx)
-    dev.send(tx)
+    exec(cmd)
 
