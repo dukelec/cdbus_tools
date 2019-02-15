@@ -28,107 +28,78 @@ import struct
 from argparse import ArgumentParser
 from pathlib import Path
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
-from cdbus_tools.comm.cdbus_serial import *
-from cdbus_tools.utils.log import *
+from cdnet.utils.log import *
+from cdnet.utils.cd_args import CdArgs
+from cdnet.dev.cdbus_serial import CDBusSerial, to_hexstr
+from cdnet.dev.cdbus_bridge import CDBusBridge
+from cdnet.dispatch import *
 
 #logger_init(logging.VERBOSE)
 logger_init(logging.DEBUG)
 #logger_init(logging.INFO)
 
-parser = ArgumentParser(usage=__doc__)
-parser.add_argument('--dev', dest='dev', default='/dev/ttyACM0')
-parser.add_argument('--not-direct', action='store_true')
-parser.add_argument('--local-addr', dest='local_addr', default=1)
-parser.add_argument('--target-addr', dest='target_addr', default=254)
+args = CdArgs()
+local_mac = int(args.get("--local-mac", dft="0"), 0)
+dev_str = args.get("--dev", dft="/dev/ttyACM0")
+direct = args.get("--direct") != None
+target_addr = args.get("--target-addr", dft="80:00:01")
 
-parser.add_argument('--addr', dest='addr', default=0x08010000)
-parser.add_argument('--size', dest='size', default=0)
-parser.add_argument('--in-file', dest='in_file')
-parser.add_argument('--out-file', dest='out_file')
-parser.add_argument('--reboot', action='store_true')
-args = parser.parse_args()
+addr = int(args.get("--addr", dft="0x08010000"), 0)
+size = int(args.get("--size", dft="0"), 0)
+in_file = args.get("--in-file")
+out_file = args.get("--out-file")
+reboot_flag = args.get("--reboot") != None
 
 sub_size = 128
-addr = int(args.addr, 0)
-size = int(args.size, 0)
 
-if args.not_direct:
-    local_addr = int(args.local_addr, 0)
-    target_addr = int(args.target_addr, 0)
+if not in_file and not out_file:
+    print(__doc__)
+    exit()
+
+if direct:
+    dev = CDBusSerial(dev_port=dev_str)
 else:
-    local_addr = 0xaa
-    target_addr = 0x55
+    dev = CDBusBridge(dev_port=dev_str, filter_=local_mac)
+CDNetIntf(dev, mac=local_mac)
+sock = CDNetSocket(('', 0xcdcd))
 
-cdbus_serial = CdbusSerial(dev_port=args.dev)
-
-
-def tx_wrapper(dat):
-    if args.not_direct:
-        dat = b'\xaa\x56' + bytes([dat[2]+2]) + dat[0:2] + dat[3:]
-    cdbus_serial.tx(dat)
-
-def rx_wrapper(timeout=None):
-    try:
-        dat = cdbus_serial.rx_queue.get(timeout=timeout)
-        if args.not_direct:
-            dat = dat[3:5] + bytes([dat[2]-2]) + dat[5:]
-        if not cdbus_serial.rx_queue.empty():
-            print('error: rx queue not empty')
-            exit(-1)
-        return dat
-    except:
-        return b''
 
 def reboot():
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + bytes([3, 0x80, 10, 0x00]))
+    sock.sendto(b'\x20', (target_addr, 10))
 
 def stay_in_bl():
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + bytes([3, 0x80, 10, 0x02]))
-    ret = rx_wrapper(timeout=1)
+    sock.sendto(b'\x62', (target_addr, 10))
+    ret, _ = sock.recvfrom(timeout=1)
     print('stay_in_bl ret: ' + to_hexstr(ret))
 
-print('cdbus_bridge get info:')
-cdbus_serial.tx(b'\xaa\x55\x01\x01')
-print(cdbus_serial.rx_queue.get()[4:])
-print()
-if args.not_direct:
-    print('cdbus_bridge set filter %d:' % local_addr)
-    cdbus_serial.tx(b'\xaa\x55\x04\x03\x08\x00' + bytes([local_addr]))
-    print('' + to_hexstr(cdbus_serial.rx_queue.get()) + '\n')
-    print()
-    print('target %d get info:' % target_addr)
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + b'\x01\x01')
-    print(cdbus_serial.rx_queue.get()[4:])
 stay_in_bl()
 
+
 def _read_flash(addr, _len):
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
-            bytes([8, 0x80, 11, 0x00]) + struct.pack("<IB", addr, _len))
-    ret = rx_wrapper()
+    sock.sendto(b'\x40' + struct.pack("<IB", addr, _len), (target_addr, 11))
+    ret, _ = sock.recvfrom()
     print(('  %08x: ' % addr) + to_hexstr(ret))
-    if len(ret[5:]) != _len:
+    if ret[0] != 0x80 or len(ret[1:]) != _len:
         print('read flash error')
         exit(-1)
-    return ret[5:]
+    return ret[1:]
 
 def _write_flash(addr, dat):    
     print(('  %08x: ' % addr) + to_hexstr(dat))
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
-            bytes([7+len(dat), 0x80, 11, 0x01]) + struct.pack("<I", addr) + dat)
-    ret = rx_wrapper()
+    sock.sendto(b'\x61' + struct.pack("<I", addr) + dat, (target_addr, 11))
+    ret, _ = sock.recvfrom()
     print('  write ret: ' + to_hexstr(ret))
-    if len(ret) != 5:
+    if ret != b'\x80':
         print('write flash error')
         exit(-1)
 
 def _erase_flash(addr, _len):
-    tx_wrapper(bytes([local_addr]) + bytes([target_addr]) + \
-            bytes([11, 0x80, 11, 0xff]) + struct.pack("<II", addr, _len))
-    ret = rx_wrapper()
+    sock.sendto(b'\x6f' + struct.pack("<II", addr, _len), (target_addr, 11))
+    ret, _ = sock.recvfrom()
     print('  erase ret: ' + to_hexstr(ret))
-    if len(ret) != 5:
+    if ret != b'\x80':
         print('erase flash error')
         exit(-1)
 
@@ -156,20 +127,18 @@ def write_flash(addr, dat):
         cur += size
 
 
-if args.out_file:
-    print('read %d bytes @%08x to file' % (size, addr), args.out_file)
+if out_file:
+    print('read %d bytes @%08x to file' % (size, addr), out_file)
     ret = read_flash(addr, size)
-    with open(args.out_file, 'wb') as f:
+    with open(out_file, 'wb') as f:
         f.write(ret)
-elif args.in_file:
-    with open(args.in_file, 'rb') as f:
+elif in_file:
+    with open(in_file, 'rb') as f:
         dat = f.read()
-    print('write %d bytes @%08x from file' % (len(dat), addr), args.in_file)
+    print('write %d bytes @%08x from file' % (len(dat), addr), in_file)
     write_flash(addr, dat)
-elif not args.reboot:
-    print(__doc__)
 
-if args.reboot:
+if reboot_flag:
     print('reboot...')
     reboot()
 
