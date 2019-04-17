@@ -24,6 +24,7 @@ import sys, os
 from time import sleep
 import readline
 import _thread
+import re
 
 sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
@@ -33,7 +34,7 @@ from cdnet.dev.cdbus_serial import CDBusSerial, to_hexstr
 from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
-logger_init(logging.VERBOSE)
+#logger_init(logging.VERBOSE)
 #logger_init(logging.DEBUG)
 #logger_init(logging.INFO)
 
@@ -54,7 +55,8 @@ sock = CDNetSocket(('', 0xcdcd))
 def rx_echo():
     while True:
         rx = sock.recvfrom()
-        print('\r-> ', rx)
+        print('\r-> ' + to_hexstr(rx[0]), rx[1])
+        print('\r  (' + re.sub(br'[^\x20-\x7e]',br'.', rx[0]).decode() + ')\n<-', end='',  flush=True)
 
 _thread.start_new_thread(rx_echo, ())
 
@@ -62,7 +64,7 @@ _thread.start_new_thread(rx_echo, ())
 # e.g. type: sock.sendto(b'\x01', ('80:00:02', 3))
 while True:
     sleep(0.1)
-    cmd = input("<- ")
+    cmd = input("\r<- ")
     if not len(cmd):
         continue
     exec(cmd)
