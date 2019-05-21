@@ -54,9 +54,13 @@ cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 
 
 import sys, os
 from time import sleep
-import readline
 import _thread
 import re
+try:
+    import readline
+except:
+    from pyreadline import Readline
+    readline = Readline()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
