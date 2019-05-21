@@ -36,15 +36,11 @@ from cdnet.dev.cdbus_serial import CDBusSerial, to_hexstr
 from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
-#logger_init(logging.VERBOSE)
-logger_init(logging.DEBUG)
-#logger_init(logging.INFO)
-
 args = CdArgs()
-local_mac = int(args.get("--local-mac", dft="0"), 0)
-dev_str = args.get("--dev", dft="/dev/ttyACM0")
 direct = args.get("--direct") != None
-target_addr = args.get("--target-addr", dft="80:00:01")
+local_mac = int(args.get("--local-mac", dft="0xaa" if direct else "0x00"), 0)
+dev_str = args.get("--dev", dft="/dev/ttyACM0")
+target_addr = args.get("--target-addr", dft="80:00:55" if direct else "80:00:01")
 
 addr = int(args.get("--addr", dft="0x08010000"), 0)
 size = int(args.get("--size", dft="0"), 0)
@@ -54,9 +50,21 @@ reboot_flag = args.get("--reboot") != None
 
 sub_size = 128
 
+if args.get("--help", "-h") != None:
+    print(__doc__)
+    exit()
+
 if not in_file and not out_file:
     print(__doc__)
     exit()
+
+if args.get("--verbose", "-v") != None:
+    logger_init(logging.VERBOSE)
+elif args.get("--debug", "-d") != None:
+    logger_init(logging.DEBUG)
+elif args.get("--info", "-i") != None:
+    logger_init(logging.INFO)
+
 
 if direct:
     dev = CDBusSerial(dev_port=dev_str)

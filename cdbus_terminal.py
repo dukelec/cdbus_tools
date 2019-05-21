@@ -15,9 +15,41 @@ or other device use CDBUS protol through serial port,
 use --direct flag then.
 
 Args:
-  --dev DEV     # specify serial port, default: /dev/ttyACM0
-  --mac MAC     # set CDBUS Bridge filter at first, default: 1
-  --direct      # see description above
+  --dev DEV         # specify serial port, default: /dev/ttyACM0
+  --mac MAC         # set CDBUS Bridge filter at first, default: 1
+  --direct          # see description above
+  --help    | -h    # this help message
+  --verbose | -v    # debug level: verbose
+  --debug   | -d    # debug level: debug
+  --info    | -i    # debug level: info
+
+
+Command prompt example1, send cdbus frame to ourself through RS485 side:
+(TODO: the sub command 0x40 of read info command will changed to 0x00)
+
+$ ./cdbus_terminal.py --verbose
+cdbus_bridge: DEBUG: read info ...
+cdbus_serial: VERBOSE: <- aa 55 03 80 01 40
+cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
+cdbus_bridge: DEBUG: info: b'M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2'
+cdbus_serial: VERBOSE: <- aa 55 05 80 03 68 00 00
+cdbus_serial: VERBOSE: -> 55 aa 03 82 03 80
+cdbus_bridge: DEBUG: set filter to 0 successed
+<- 
+<- 01 00 01 cd
+cdbus_serial: VERBOSE: <- aa 56 03 01 00 cd
+cdbus_serial: VERBOSE: -> 56 aa 03 01 00 cd
+-> 01 00 01 cd
+  (....)
+
+Command prompt example2, send frame to cdbus_bridge 0x55 address:
+
+$ ./cdbus_terminal.py --verbose --direct
+<- aa 55 03 80 01 40
+cdbus_serial: VERBOSE: <- aa 55 03 80 01 40
+cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
+-> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
+  (U.D...M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2)
 """
 
 import sys, os
@@ -34,14 +66,21 @@ from cdnet.dev.cdbus_serial import CDBusSerial, to_hexstr
 from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
-#logger_init(logging.VERBOSE)
-#logger_init(logging.DEBUG)
-#logger_init(logging.INFO)
-
 args = CdArgs()
-local_mac = int(args.get("--mac", dft="0"), 0)
 dev_str = args.get("--dev", dft="/dev/ttyACM0")
 direct = args.get("--direct") != None
+local_mac = int(args.get("--mac", dft="0xaa" if direct else "0x00"), 0)
+
+if args.get("--help", "-h") != None:
+    print(__doc__)
+    exit()
+
+if args.get("--verbose", "-v") != None:
+    logger_init(logging.VERBOSE)
+elif args.get("--debug", "-d") != None:
+    logger_init(logging.DEBUG)
+elif args.get("--info", "-i") != None:
+    logger_init(logging.INFO)
 
 
 if direct:
