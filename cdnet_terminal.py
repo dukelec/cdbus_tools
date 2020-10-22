@@ -27,8 +27,8 @@ Command prompt example:
 
 $ ./cdnet_terminal.py --verbose --direct
 <- 
-<- sock.sendto(b'\\x40', ('80:00:55', 1))
-cdbus_serial: VERBOSE: <- aa 55 03 80 01 40
+<- sock.sendto(b'\\x00', ('80:00:55', 1))
+cdbus_serial: VERBOSE: <- aa 55 03 80 01 00
 cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
 -> 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32 ('80:00:55', 1)
   (.M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2)
@@ -36,6 +36,7 @@ cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 
 """
 
 import sys, os
+import struct
 from time import sleep
 import _thread
 import re
@@ -49,7 +50,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
 from cdnet.utils.log import *
 from cdnet.utils.cd_args import CdArgs
-from cdnet.dev.cdbus_serial import CDBusSerial, to_hexstr
+from cdnet.dev.cdbus_serial import CDBusSerial
 from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
@@ -81,7 +82,7 @@ sock = CDNetSocket(('', 0xcdcd))
 def rx_echo():
     while True:
         rx = sock.recvfrom()
-        print('\r-> ' + to_hexstr(rx[0]), rx[1])
+        print('\r-> ' + rx[0].hex(), rx[1])
         print('\r  (' + re.sub(br'[^\x20-\x7e]',br'.', rx[0]).decode() + ')\n<-', end='',  flush=True)
 
 _thread.start_new_thread(rx_echo, ())
