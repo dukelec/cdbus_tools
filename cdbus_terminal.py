@@ -92,7 +92,7 @@ else:
 def rx_echo():
     while True:
         rx = dev.recv()
-        #print('\r-> ' + rx.hex())
+        print('\r-> ' + rx.hex())
         print('\r  (' + re.sub(br'[^\x20-\x7e]',br'.', rx).decode() + ')\n<-', end='',  flush=True)
 
 _thread.start_new_thread(rx_echo, ())
