@@ -107,7 +107,7 @@ def csa_read(offset, len_):
     return ret
 
 
-if not reboot_flag:
+if out_file or in_file:
     ret = csa_write(R_keep_in_bl, bytes([1]))
     print('stay_in_bl ret: ' + ret.hex())
 
@@ -158,7 +158,12 @@ def write_flash(addr, dat):
         size = min(sub_size, len(dat)-(cur-addr))
         if size == 0:
             break
-        _write_flash(cur, dat[cur-addr:cur-addr+size])
+        wdat = dat[cur-addr:cur-addr+size]
+        _write_flash(cur, wdat)
+        rdat = _read_flash(cur, len(wdat))
+        if rdat != wdat:
+            print(f'rdat != wdat, @{cur:08x}')
+            exit(-1)
         cur += size
 
 
@@ -176,4 +181,6 @@ elif in_file:
 if reboot_flag:
     print('reboot...')
     csa_write(R_do_reboot, bytes([1]))
+
+print('done.')
 
