@@ -15,8 +15,8 @@ or other device use CDBUS protol through serial port,
 use --direct flag then.
 
 Args:
-  --dev DEV         # specify serial port, default: /dev/ttyACM0
-  --mac MAC         # set CDBUS Bridge filter at first, default: 1
+  --dev DEV         # specify serial port, default: ttyACM0
+  --baud BAUD       # set baudrate, default: 115200
   --direct          # see description above
   --help    | -h    # this help message
   --verbose | -v    # debug level: verbose
@@ -68,9 +68,9 @@ from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
 args = CdArgs()
-dev_str = args.get("--dev", dft="/dev/ttyACM0")
+dev_str = args.get("--dev", dft="ttyACM0")
+baud = int(args.get("--baud", dft="115200"), 0)
 direct = args.get("--direct") != None
-local_mac = int(args.get("--mac", dft="0xaa" if direct else "0x00"), 0)
 
 if args.get("--help", "-h") != None:
     print(__doc__)
@@ -85,9 +85,9 @@ elif args.get("--info", "-i") != None:
 
 
 if direct:
-    dev = CDBusSerial(dev_port=dev_str)
+    dev = CDBusSerial(dev_str, baud=baud)
 else:
-    dev = CDBusBridge(dev_port=dev_str, filter_=local_mac)
+    dev = CDBusBridge(dev_str)
 
 def rx_echo():
     while True:
