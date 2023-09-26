@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# Software License Agreement (BSD License)
+# Software License Agreement (MIT License)
 #
 # Copyright (c) 2018, DUKELEC, Inc.
 # All rights reserved.
 #
-# Author: Duke Fong <duke@dukelec.com>
+# Author: Duke Fong <d@d-l.io>
 
 """CDBUS IAP Tool
 
@@ -41,15 +41,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 from cdnet.utils.log import *
 from cdnet.utils.cd_args import CdArgs
 from cdnet.dev.cdbus_serial import CDBusSerial
-from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
 args = CdArgs()
-direct = args.get("--direct") != None
-local_mac = int(args.get("--local-mac", dft="0xaa" if direct else "0x00"), 0)
+local_mac = int(args.get("--local-mac", dft="0x00"), 0)
 dev_str = args.get("--dev", dft="ttyACM0")
 baud = int(args.get("--baud", dft="115200"), 0)
-target_addr = args.get("--target-addr", dft="80:00:55" if direct else "80:00:fe")
+target_addr = args.get("--target-addr", dft="80:00:fe")
 
 addr = int(args.get("--addr", dft="0x0800c000"), 0)
 size = int(args.get("--size", dft="0"), 0)
@@ -75,10 +73,7 @@ elif args.get("--info", "-i") != None:
     logger_init(logging.INFO)
 
 
-if direct:
-    dev = CDBusSerial(dev_str, baud=baud)
-else:
-    dev = CDBusBridge(dev_str)
+dev = CDBusSerial(dev_str, baud=baud)
 CDNetIntf(dev, mac=local_mac)
 sock = CDNetSocket(('', 0xcdcd))
 sock_dbg = CDNetSocket(('', 9))

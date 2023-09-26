@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
-# Software License Agreement (BSD License)
+# Software License Agreement (MIT License)
 #
 # Copyright (c) 2017, DUKELEC, Inc.
 # All rights reserved.
 #
-# Author: Duke Fong <duke@dukelec.com>
+# Author: Duke Fong <d@d-l.io>
 
 """Low level CDBUS debug tool
-
-This tool use CDBUS Bridge by default, communicate with any node on the RS485 bus.
-
-If you want to communicate with CDBUS Bridge itself,
-or other device use CDBUS protol through serial port,
-use --direct flag then.
 
 Args:
   --dev DEV         # specify serial port, default: ttyACM0
   --baud BAUD       # set baudrate, default: 115200
-  --direct          # see description above
   --help    | -h    # this help message
   --verbose | -v    # debug level: verbose
   --debug   | -d    # debug level: debug
@@ -25,26 +18,22 @@ Args:
 
 
 Command prompt example1, send cdbus frame to ourself through RS485 side:
-(TODO: the sub command 0x40 of read info command will changed to 0x00)
 
 $ ./cdbus_terminal.py --verbose
-cdbus_bridge: DEBUG: read info ...
-cdbus_serial: VERBOSE: <- aa 55 03 80 01 00
-cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
-cdbus_bridge: DEBUG: info: b'M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2'
-<- 
+<-
 <- 01 00 01 cd
-cdbus_serial: VERBOSE: <- aa 56 03 01 00 cd
-cdbus_serial: VERBOSE: -> 56 aa 03 01 00 cd
+cdbus_serial: VERBOSE: <- 01 00 01 cd
+cdbus_serial: VERBOSE: -> 01 00 01 cd
 -> 01 00 01 cd
   (....)
 
 Command prompt example2, send frame to cdbus_bridge 0x55 address:
 
-$ ./cdbus_terminal.py --verbose --direct
-<- aa 55 03 80 01 40
-cdbus_serial: VERBOSE: <- aa 55 03 80 01 00
-cdbus_serial: VERBOSE: -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
+$ ./cdbus_terminal.py --verbose --baud 0xcdcd
+<-
+<- 00 fe 03 80 01 00
+cdbus_serial: VERBOSE: <- 00 fe 03 80 01 00
+cdbus_serial: VERBOSE: -> fe 00 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
 -> 55 aa 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
   (U.D...M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2)
 """
@@ -64,13 +53,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 from cdnet.utils.log import *
 from cdnet.utils.cd_args import CdArgs
 from cdnet.dev.cdbus_serial import CDBusSerial
-from cdnet.dev.cdbus_bridge import CDBusBridge
 from cdnet.dispatch import *
 
 args = CdArgs()
 dev_str = args.get("--dev", dft="ttyACM0")
 baud = int(args.get("--baud", dft="115200"), 0)
-direct = args.get("--direct") != None
 
 if args.get("--help", "-h") != None:
     print(__doc__)
@@ -83,11 +70,7 @@ elif args.get("--debug", "-d") != None:
 elif args.get("--info", "-i") != None:
     logger_init(logging.INFO)
 
-
-if direct:
-    dev = CDBusSerial(dev_str, baud=baud)
-else:
-    dev = CDBusBridge(dev_str)
+dev = CDBusSerial(dev_str, baud=baud)
 
 def rx_echo():
     while True:
