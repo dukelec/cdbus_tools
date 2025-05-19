@@ -21,11 +21,11 @@ Command prompt example:
 
 $ ./cdnet_terminal.py --verbose --baud 0xcdcd
 <- 
-<- sock.sendto(b'\\x00', ('80:00:fe', 1))
-cdbus_serial: VERBOSE: <- 00 fe 03 80 01 00
-cdbus_serial: VERBOSE: -> fe 00 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32
--> 80 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 30 33 66 66 35 64 35 30 65 34 35 35 32 33 35 33 39 35 36 35 30 32 33 34 3b 20 53 57 3a 20 76 32 2e 30 2d 33 2d 67 63 39 34 33 63 65 32 ('80:00:55', 1)
-  (.M: cdbus bridge; S: 03ff5d50e455235395650234; SW: v2.0-3-gc943ce2)
+<- sock.sendto(b'', ('00:00:fe', 1))
+cdnet.dev.serial: VERBOSE: <- 00 fe 02 40 01
+cdnet.dev.serial: VERBOSE: -> ff 00 4a 01 40 4d 3a 20 63 64 62 75 73 20 62 72 69 64 67 65 3b 20 53 3a 20 31 65 30 30 34 31 30 30 30 34 35 30 34 64 34 64 33 35 33 31 33 32 32 30 3b 20 53 57 3a 20 76 35 2e 31 2d 33 30 2d 67 37 65 62 34 61 39 34
+-> 4d3a206364627573206272696467653b20533a203165303034313030303435303464346433353331333232303b2053573a2076352e312d33302d67376562346139342d6469727479 ('00:00:ff', 1)
+  (M: cdbus bridge; S: 1e00410004504d4d35313220; SW: v5.1-30-g7eb4a94)
 <- 
 """
 
@@ -66,7 +66,7 @@ elif args.get("--info", "-i") != None:
 dev = CDBusSerial(dev_str, baud=baud)
 
 CDNetIntf(dev, mac=local_mac)
-sock = CDNetSocket(('', 0xcdcd))
+sock = CDNetSocket(('', 0x40))
 
 
 def rx_echo():
