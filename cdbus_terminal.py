@@ -47,10 +47,13 @@ from datetime import datetime
 import _thread
 import re
 try:
-    import readline
-except:
-    from pyreadline import Readline
-    readline = Readline()
+    import readline                     # history and line editing on linux / macos
+except ImportError:
+    try:
+        from pyreadline3 import Readline   # windows: pip install pyreadline3
+        readline = Readline()
+    except ImportError:
+        pass                            # input() works without, only no history
 
 sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
