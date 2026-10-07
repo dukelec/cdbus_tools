@@ -11,6 +11,9 @@
 Args:
   --dev DEV         # specify serial port, default: ttyACM0
   --baud BAUD       # set baudrate, default: 115200
+  --record [FILE]   # record the bus to a pcapng file, default: cdbus_<time>.pcapng in the
+            | -r    #   current dir; open it in Wireshark with wireshark/cdbus.lua. Enter on
+                    #   an empty line puts a mark into the recording, "# text" one with text
   --help    | -h    # this help message
   --verbose | -v    # debug level: verbose
   --debug   | -d    # debug level: debug
@@ -40,6 +43,7 @@ cdbus_serial: VERBOSE: -> fe 00 44 82 01 80 4d 3a 20 63 64 62 75 73 20 62 72 69 
 
 import sys, os
 from time import sleep
+from datetime import datetime
 import _thread
 import re
 try:
@@ -52,12 +56,15 @@ sys.path.append(os.path.join(os.path.dirname(__file__), './pycdnet'))
 
 from cdnet.utils.log import *
 from cdnet.utils.cd_args import CdArgs
+from cdnet.utils.crc import modbus_crc
+from cdnet.utils.pcapng import PcapngWriter, IF_CDBUS, IF_MARK, FLAG_INBOUND, FLAG_OUTBOUND
 from cdnet.dev.cdbus_serial import CDBusSerial
 from cdnet.dispatch import *
 
 args = CdArgs()
 dev_str = args.get("--dev", dft="ttyACM0")
 baud = int(args.get("--baud", dft="115200"), 0)
+rec_path = args.get("--record", "-r") # None: no recording, '': the default file name
 
 if args.get("--help", "-h") != None:
     print(__doc__)
@@ -72,9 +79,23 @@ elif args.get("--info", "-i") != None:
 
 dev = CDBusSerial(dev_str, baud=baud)
 
+# the recording holds the frames as they are on the wire, crc included; every packet is one
+# write() to the file, so there is nothing to flush when the program ends
+rec = None
+if rec_path != None:
+    rec_path = rec_path or datetime.now().strftime('cdbus_%Y%m%d_%H%M%S.pcapng')
+    rec = PcapngWriter(rec_path, app='cdbus_terminal', dev_str=f'{dev_str} @ {baud}',
+                       mark_str='marks: Enter on an empty line at the prompt of cdbus_terminal, or "# text"')
+    print(f'recording to {rec_path}')
+
+def with_crc(frame):
+    return frame + modbus_crc(frame).to_bytes(2, byteorder='little')
+
 def rx_echo():
     while True:
-        rx = dev.recv()
+        ts, rx = dev.recv(with_ts=True) # ts: when the serial thread read it in
+        if rec:
+            rec.packet(IF_CDBUS, with_crc(rx), ts, FLAG_INBOUND)
         print('\r-> ' + rx.hex())
         print('\r  (' + re.sub(br'[^\x20-\x7e]',br'.', rx).decode() + ')\n<-', end='',  flush=True)
 
@@ -83,8 +104,15 @@ _thread.start_new_thread(rx_echo, ())
 while True:
     sleep(0.1)
     tx = input("\r<- ")
-    if not len(tx):
+    if not len(tx) or tx.startswith('#'): # a mark, as Enter in a Logs window of cdbus_gui; with text after the #
+        if rec:
+            text = tx[1:].strip()
+            rec.packet(IF_MARK, text.encode(), comment=text)
         continue
     tx = bytes.fromhex(tx)
-    dev.send(tx)
+    if rec: # before the send, so the reply cannot land ahead of it in the file
+        rec.packet(IF_CDBUS, with_crc(tx), flags=FLAG_OUTBOUND)
+    err = dev.send(tx)
+    if err and rec:
+        rec.packet(IF_MARK, b'tx failed', comment=f'tx failed: {err}') # the frame above never went out
 

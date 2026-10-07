@@ -4,7 +4,8 @@ CDBUS / CDNET dissector for Wireshark
 `cdbus.lua` decodes CDBUS frames and the CDNET packets inside them (cdnet 2.1), from:
 
  - the `.pcapng` files that [cdbus_gui](https://github.com/dukelec/cdbus_gui) records
-   ("Record" on its index page), the format is described below;
+   ("Record" on its index page) or `cdbus_terminal.py --record` of this repository writes, the
+   format is described below;
  - a capture taken by Wireshark itself on the IPv6/UDP side of the bus, the `tun0` of
    [cdnet_tun](https://github.com/dukelec/cdnet_tun) or the `cdbus0` ethernet port of the
    [CDBUS Bridge](https://github.com/dukelec/cdbus_bridge): a UDP packet with an address
@@ -58,9 +59,10 @@ A recording is a pcapng file, nanosecond timestamps, with two interfaces:
 | 0 | `LINKTYPE_USER0` (147) | `cdbus` | one CDBUS frame per packet, as it is on the wire: `src, dst, len, [payload], crc_l, crc_h`. The `epb_flags` option carries the direction: 1 inbound (received from the bus), 2 outbound (sent). |
 | 1 | `LINKTYPE_USER1` (148) | `mark` | a mark: the packet data is the mark text (UTF-8), and the same text is the packet comment, so it reads the same without the dissector. |
 
-The section header's `shb_userappl` names the writer (`cdbus_gui <version>`), the `cdbus`
-interface's description names the serial port, its baud rate and the local address of the
-writer. A frame without the CRC (`len + 3` bytes) is accepted by the dissector as well.
+The section header's `shb_userappl` names the writer (`cdbus_gui <version>`, `cdbus_terminal`),
+the `cdbus` interface's description names the serial port, its baud rate and, for cdbus_gui, the
+local address of the writer. A frame without the CRC (`len + 3` bytes) is accepted by the
+dissector as well. The writer is `cdnet/utils/pcapng.py` of [pycdnet](https://github.com/dukelec/pycdnet).
 
 The link types are from the private range until an official `LINKTYPE_CDBUS` is assigned; the
 dissector will then register both.
